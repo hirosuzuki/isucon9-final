@@ -1,0 +1,14 @@
+[Unit]
+Description=ISUTRAIN
+After=network.target
+
+[Service]
+Type=simple
+EnvironmentFile=/home/isucon/isucon9-final/webapp/.env
+ExecStart=/home/isucon/isucon9-final/webapp/go/isucon9final
+#ExecReload=/usr/sbin/httpd $OPTIONS -k graceful
+#ExecStop=/bin/kill -WINCH ${MAINPID}
+#PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
