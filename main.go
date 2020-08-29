@@ -239,7 +239,7 @@ type AuthResponse struct {
 
 const (
 	sessionName   = "session_isutrain"
-	availableDays = 10
+	availableDays = 90
 )
 
 var (
@@ -842,8 +842,8 @@ WHERE
 			}
 
 			var departureStation, arrivalStation Station
-			departureStation = *stationMap[reservation.Departure]
-			arrivalStation = *stationMap[reservation.Arrival]
+			departureStation = stationMap[reservation.Departure]
+			arrivalStation = stationMap[reservation.Arrival]
 
 			if train.IsNobori {
 				// 上り
@@ -876,12 +876,10 @@ WHERE
 	// 各号車の情報
 
 	simpleCarInformationList := []SimpleCarInformation{}
-	seat := Seat{}
-	query = "SELECT * FROM seat_master WHERE train_class=? AND car_number=? ORDER BY seat_row, seat_column LIMIT 1"
 	i := 1
 	for {
-		err = dbx.Get(&seat, query, trainClass, i)
-		if err != nil {
+		seat, ok := seatMap[trainClass][i]
+		if !ok {
 			break
 		}
 		simpleCarInformationList = append(simpleCarInformationList, SimpleCarInformation{i, seat.SeatClass})
@@ -2068,7 +2066,8 @@ func userReservationCancelHandler(w http.ResponseWriter, r *http.Request) {
 	messageResponse(w, "cancell complete")
 }
 
-var stationMap map[string]*Station = make(map[string]*Station)
+var stationMap map[string]Station = make(map[string]Station)
+var seatMap map[string]map[int]Seat = make(map[string]map[int]Seat)
 
 func initializeHandler(w http.ResponseWriter, r *http.Request) {
 	/*
@@ -2087,8 +2086,19 @@ func initializeHandler(w http.ResponseWriter, r *http.Request) {
 
 	var allStations []Station = []Station{}
 	dbx.Select(&allStations, "SELECT * FROM `station_master`")
-	for _, station := range allStations {
-		stationMap[station.Name] = &station
+	for i, station := range allStations {
+		stationMap[station.Name] = allStations[i]
+	}
+
+	var allSeats []Seat = []Seat{}
+	dbx.Select(&allSeats, "SELECT * FROM `seat_master`  ORDER BY seat_row, seat_column")
+	for i, seat := range allSeats {
+		if _, ok := seatMap[seat.TrainClass]; !ok {
+			seatMap[seat.TrainClass] = map[int]Seat{}
+		}
+		if _, ok := seatMap[seat.TrainClass][seat.CarNumber]; !ok {
+			seatMap[seat.TrainClass][seat.CarNumber] = allSeats[i]
+		}
 	}
 
 	log.Printf("stationMap: %v\n", stationMap)
