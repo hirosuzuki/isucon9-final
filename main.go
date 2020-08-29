@@ -606,7 +606,10 @@ func trainSearchHandler(w http.ResponseWriter, r *http.Request) {
 				return
 			}
 
+			ph := tracer.Measure("trainSearch", "getAvailableSeats4")
+
 			premium_avail_seats, err := train.getAvailableSeats(fromStation, toStation, "premium", false)
+
 			if err != nil {
 				errorResponse(w, http.StatusBadRequest, err.Error())
 				return
@@ -627,6 +630,8 @@ func trainSearchHandler(w http.ResponseWriter, r *http.Request) {
 				errorResponse(w, http.StatusBadRequest, err.Error())
 				return
 			}
+
+			ph.End()
 
 			premium_avail := "○"
 			if len(premium_avail_seats) == 0 {
@@ -2084,11 +2089,13 @@ func initializeHandler(w http.ResponseWriter, r *http.Request) {
 	dbx.Exec("TRUNCATE reservations")
 	dbx.Exec("TRUNCATE users")
 
-	tracer.Start()
-	startCmd := exec.Command("sh", "/home/isucon/start.sh", tracer.TraceID)
-	startCmd.Stderr = os.Stderr
-	startCmd.Stdout = os.Stderr
-	startCmd.Start()
+	if true {
+		tracer.Start()
+		startCmd := exec.Command("sh", "/home/isucon/start.sh", tracer.TraceID)
+		startCmd.Stderr = os.Stderr
+		startCmd.Stdout = os.Stderr
+		startCmd.Start()
+	}
 
 	var allStations []Station = []Station{}
 	dbx.Select(&allStations, "SELECT * FROM `station_master`")
