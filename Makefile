@@ -14,3 +14,5 @@ deploy:
 	scp isucon9final isucon9-a:/home/isucon/isucon9-final/webapp/go/isucon9final
 	ssh isucon9-a sudo systemctl start isutrain
 
+bench:
+	ssh isucon9-bench "cd isucon9-final && bench/bin/bench_linux run --payment=http://10.146.15.196:15000 --target=http://10.146.15.196:80 --assetdir=webapp/frontend/dist"
