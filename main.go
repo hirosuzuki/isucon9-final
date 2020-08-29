@@ -1294,31 +1294,17 @@ func trainReservationHandler(w http.ResponseWriter, r *http.Request) {
 		query = "SELECT * FROM station_master WHERE name=?"
 
 		// From
-		err = tx.Get(&reservedfromStation, query, reservation.Departure)
-		if err == sql.ErrNoRows {
+		if reservedfromStation, ok = stationMap[reservation.Departure]; !ok {
 			tx.Rollback()
 			errorResponse(w, http.StatusNotFound, "予約情報に記載された列車の乗車駅データがみつかりません")
 			log.Println(err.Error())
 			return
 		}
-		if err != nil {
-			tx.Rollback()
-			errorResponse(w, http.StatusInternalServerError, "予約情報に記載された列車の乗車駅データの取得に失敗しました")
-			log.Println(err.Error())
-			return
-		}
 
 		// To
-		err = tx.Get(&reservedtoStation, query, reservation.Arrival)
-		if err == sql.ErrNoRows {
+		if reservedtoStation, ok = stationMap[reservation.Arrival]; !ok {
 			tx.Rollback()
 			errorResponse(w, http.StatusNotFound, "予約情報に記載された列車の降車駅データがみつかりません")
-			log.Println(err.Error())
-			return
-		}
-		if err != nil {
-			tx.Rollback()
-			errorResponse(w, http.StatusInternalServerError, "予約情報に記載された列車の降車駅データの取得に失敗しました")
 			log.Println(err.Error())
 			return
 		}
