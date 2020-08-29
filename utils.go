@@ -48,6 +48,31 @@ func getUsableTrainClassList(fromStation Station, toStation Station) []string {
 	return ret
 }
 
+type ssb struct {
+	trainClass    string
+	seatClass     string
+	isSmokingSeat bool
+}
+
+var seatSsbMap map[ssb][]Seat
+
+func initSeatSsbMap() {
+	seatSsbMap = map[ssb][]Seat{}
+
+	query := "SELECT * FROM seat_master"
+
+	seatList := []Seat{}
+	dbx.Select(&seatList, query)
+
+	for _, seat := range seatList {
+		k := ssb{seat.TrainClass, seat.SeatClass, seat.IsSmokingSeat}
+		if _, ok := seatSsbMap[k]; !ok {
+			seatSsbMap[k] = []Seat{}
+		}
+		seatSsbMap[k] = append(seatSsbMap[k], seat)
+	}
+}
+
 func (train Train) getAvailableSeats(fromStation Station, toStation Station, seatClass string, isSmokingSeat bool) ([]Seat, error) {
 	// 指定種別の空き座席を返す
 
@@ -56,11 +81,8 @@ func (train Train) getAvailableSeats(fromStation Station, toStation Station, sea
 	// 全ての座席を取得する
 	query := "SELECT * FROM seat_master WHERE train_class=? AND seat_class=? AND is_smoking_seat=?"
 
-	seatList := []Seat{}
-	err = dbx.Select(&seatList, query, train.TrainClass, seatClass, isSmokingSeat)
-	if err != nil {
-		return nil, err
-	}
+	k := ssb{train.TrainClass, seatClass, isSmokingSeat}
+	seatList := seatSsbMap[k]
 
 	availableSeatMap := map[string]Seat{}
 	for _, seat := range seatList {

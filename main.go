@@ -1225,19 +1225,11 @@ func trainReservationHandler(w http.ResponseWriter, r *http.Request) {
 		}
 	default:
 		// 座席情報のValidate
-		seatList := Seat{}
 		for _, z := range req.Seats {
 			fmt.Println("XXXX", z)
-			query = "SELECT * FROM seat_master WHERE train_class=? AND car_number=? AND seat_column=? AND seat_row=? AND seat_class=?"
-			err = dbx.Get(
-				&seatList, query,
-				req.TrainClass,
-				req.CarNumber,
-				z.Column,
-				z.Row,
-				req.SeatClass,
-			)
-			if err != nil {
+			k := sisis{req.TrainClass, req.CarNumber, z.Column, z.Row, req.SeatClass}
+			_, ok := seat5Map[k]
+			if !ok {
 				tx.Rollback()
 				errorResponse(w, http.StatusNotFound, "リクエストされた座席情報は存在しません。号車・喫煙席・座席クラスなど組み合わせを見直してください")
 				log.Println(err.Error())
@@ -2015,6 +2007,16 @@ func userReservationCancelHandler(w http.ResponseWriter, r *http.Request) {
 var stationMap map[string]Station = make(map[string]Station)
 var seatMap map[string]map[int]Seat = make(map[string]map[int]Seat)
 
+type sisis struct {
+	trainClass string
+	carNumber  int
+	seatColumn string
+	searRow    int
+	seatClass  string
+}
+
+var seat5Map map[sisis]bool = make(map[sisis]bool)
+
 func initializeHandler(w http.ResponseWriter, r *http.Request) {
 	/*
 		initialize
@@ -2047,9 +2049,13 @@ func initializeHandler(w http.ResponseWriter, r *http.Request) {
 		if _, ok := seatMap[seat.TrainClass][seat.CarNumber]; !ok {
 			seatMap[seat.TrainClass][seat.CarNumber] = allSeats[i]
 		}
+		k := sisis{seat.TrainClass, seat.CarNumber, seat.SeatColumn, seat.SeatRow, seat.SeatClass}
+		seat5Map[k] = seat.IsSmokingSeat
 	}
 
 	log.Printf("stationMap: %v\n", stationMap)
+
+	initSeatSsbMap()
 
 	resp := InitializeResponse{
 		availableDays,
