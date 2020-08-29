@@ -842,16 +842,8 @@ WHERE
 			}
 
 			var departureStation, arrivalStation Station
-			query = "SELECT * FROM station_master WHERE name=?"
-
-			err = dbx.Get(&departureStation, query, reservation.Departure)
-			if err != nil {
-				panic(err)
-			}
-			err = dbx.Get(&arrivalStation, query, reservation.Arrival)
-			if err != nil {
-				panic(err)
-			}
+			departureStation = *stationMap[reservation.Departure]
+			arrivalStation = *stationMap[reservation.Arrival]
 
 			if train.IsNobori {
 				// 上り
@@ -2076,6 +2068,8 @@ func userReservationCancelHandler(w http.ResponseWriter, r *http.Request) {
 	messageResponse(w, "cancell complete")
 }
 
+var stationMap map[string]*Station = make(map[string]*Station)
+
 func initializeHandler(w http.ResponseWriter, r *http.Request) {
 	/*
 		initialize
@@ -2090,6 +2084,14 @@ func initializeHandler(w http.ResponseWriter, r *http.Request) {
 	startCmd.Stderr = os.Stderr
 	startCmd.Stdout = os.Stderr
 	startCmd.Start()
+
+	var allStations []Station = []Station{}
+	dbx.Select(&allStations, "SELECT * FROM `station_master`")
+	for _, station := range allStations {
+		stationMap[station.Name] = &station
+	}
+
+	log.Printf("stationMap: %v\n", stationMap)
 
 	resp := InitializeResponse{
 		availableDays,
