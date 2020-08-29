@@ -462,31 +462,19 @@ func trainSearchHandler(w http.ResponseWriter, r *http.Request) {
 	adult, _ := strconv.Atoi(r.URL.Query().Get("adult"))
 	child, _ := strconv.Atoi(r.URL.Query().Get("child"))
 
+	var ok bool
 	var fromStation, toStation Station
 	query := "SELECT * FROM station_master WHERE name=?"
 
-	// From
-	err = dbx.Get(&fromStation, query, fromName)
-	if err == sql.ErrNoRows {
+	if fromStation, ok = stationMap[fromName]; !ok {
 		log.Print("fromStation: no rows")
 		errorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
-	if err != nil {
-		errorResponse(w, http.StatusInternalServerError, err.Error())
-		return
-	}
 
-	// To
-	err = dbx.Get(&toStation, query, toName)
-	if err == sql.ErrNoRows {
+	if toStation, ok = stationMap[toName]; !ok {
 		log.Print("toStation: no rows")
 		errorResponse(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	if err != nil {
-		log.Print(err)
-		errorResponse(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -756,30 +744,20 @@ func trainSeatsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var ok bool
 	var fromStation, toStation Station
 	query = "SELECT * FROM station_master WHERE name=?"
 
 	// From
-	err = dbx.Get(&fromStation, query, fromName)
-	if err == sql.ErrNoRows {
+	if fromStation, ok = stationMap[fromName]; !ok {
 		log.Print("fromStation: no rows")
-		errorResponse(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	if err != nil {
 		errorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	// To
-	err = dbx.Get(&toStation, query, toName)
-	if err == sql.ErrNoRows {
+	if toStation, ok = stationMap[toName]; !ok {
 		log.Print("toStation: no rows")
-		errorResponse(w, http.StatusBadRequest, err.Error())
-		return
-	}
-	if err != nil {
-		log.Print(err)
 		errorResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -979,34 +957,21 @@ func trainReservationHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// 列車自体の駅IDを求める
+	var ok bool
 	var departureStation, arrivalStation Station
 	query = "SELECT * FROM station_master WHERE name=?"
-	// Departure
-	err = tx.Get(&departureStation, query, tmas.StartStation)
-	if err == sql.ErrNoRows {
+
+	if departureStation, ok = stationMap[tmas.StartStation]; !ok {
 		tx.Rollback()
 		errorResponse(w, http.StatusNotFound, "リクエストされた列車の始発駅データがみつかりません")
 		log.Println(err.Error())
 		return
 	}
-	if err != nil {
-		tx.Rollback()
-		errorResponse(w, http.StatusInternalServerError, "リクエストされた列車の始発駅データの取得に失敗しました")
-		log.Println(err.Error())
-		return
-	}
 
 	// Arrive
-	err = tx.Get(&arrivalStation, query, tmas.LastStation)
-	if err == sql.ErrNoRows {
+	if arrivalStation, ok = stationMap[tmas.LastStation]; !ok {
 		tx.Rollback()
 		errorResponse(w, http.StatusNotFound, "リクエストされた列車の終着駅データがみつかりません")
-		log.Println(err.Error())
-		return
-	}
-	if err != nil {
-		tx.Rollback()
-		errorResponse(w, http.StatusInternalServerError, "リクエストされた列車の終着駅データの取得に失敗しました")
 		log.Println(err.Error())
 		return
 	}
@@ -1016,31 +981,17 @@ func trainReservationHandler(w http.ResponseWriter, r *http.Request) {
 	query = "SELECT * FROM station_master WHERE name=?"
 
 	// From
-	err = tx.Get(&fromStation, query, req.Departure)
-	if err == sql.ErrNoRows {
+	if fromStation, ok = stationMap[req.Departure]; !ok {
 		tx.Rollback()
 		errorResponse(w, http.StatusNotFound, fmt.Sprintf("乗車駅データがみつかりません %s", req.Departure))
 		log.Println(err.Error())
 		return
 	}
-	if err != nil {
-		tx.Rollback()
-		errorResponse(w, http.StatusInternalServerError, "乗車駅データの取得に失敗しました")
-		log.Println(err.Error())
-		return
-	}
 
 	// To
-	err = tx.Get(&toStation, query, req.Arrival)
-	if err == sql.ErrNoRows {
+	if toStation, ok = stationMap[req.Arrival]; !ok {
 		tx.Rollback()
 		errorResponse(w, http.StatusNotFound, fmt.Sprintf("降車駅データがみつかりません %s", req.Arrival))
-		log.Println(err.Error())
-		return
-	}
-	if err != nil {
-		tx.Rollback()
-		errorResponse(w, http.StatusInternalServerError, "降車駅データの取得に失敗しました")
 		log.Println(err.Error())
 		return
 	}
@@ -1175,13 +1126,11 @@ func trainReservationHandler(w http.ResponseWriter, r *http.Request) {
 					var departureStation, arrivalStation Station
 					query = "SELECT * FROM station_master WHERE name=?"
 
-					err = dbx.Get(&departureStation, query, reservation.Departure)
-					if err != nil {
+					if departureStation, ok = stationMap[reservation.Departure]; !ok {
 						tx.Rollback()
 						panic(err)
 					}
-					err = dbx.Get(&arrivalStation, query, reservation.Arrival)
-					if err != nil {
+					if arrivalStation, ok = stationMap[reservation.Arrival]; !ok {
 						tx.Rollback()
 						panic(err)
 					}
