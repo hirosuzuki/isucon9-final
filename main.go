@@ -99,6 +99,15 @@ type SeatReservation struct {
 	SeatColumn    string `json:"seat_column" db:"seat_column"`
 }
 
+type SeatReservationEx struct {
+	ReservationId int    `json:"reservation_id,omitempty" db:"reservation_id"`
+	CarNumber     int    `json:"car_number,omitempty" db:"car_number"`
+	SeatRow       int    `json:"seat_row" db:"seat_row"`
+	SeatColumn    string `json:"seat_column" db:"seat_column"`
+	Departure     string `json:"departure" db:"departure"`
+	Arrival       string `json:"arrival" db:"arrival"`
+}
+
 // 未整理
 
 type CarInformation struct {
@@ -1081,8 +1090,8 @@ func trainReservationHandler(w http.ResponseWriter, r *http.Request) {
 			var seatInformationList []SeatInformation
 			for _, seat := range seatList {
 				s := SeatInformation{seat.SeatRow, seat.SeatColumn, seat.SeatClass, seat.IsSmokingSeat, false}
-				seatReservationList := []SeatReservation{}
-				query = "SELECT s.* FROM seat_reservations s, reservations r WHERE r.date=? AND r.train_class=? AND r.train_name=? AND car_number=? AND seat_row=? AND seat_column=? FOR UPDATE"
+				seatReservationList := []SeatReservationEx{}
+				query = "SELECT s.*, r.departure, r.arrival FROM seat_reservations s, reservations r WHERE r.date=? AND r.train_class=? AND r.train_name=? AND car_number=? AND seat_row=? AND seat_column=? FOR UPDATE"
 				err = dbx.Select(
 					&seatReservationList, query,
 					date.Format("2006/01/02"),
@@ -1099,21 +1108,15 @@ func trainReservationHandler(w http.ResponseWriter, r *http.Request) {
 				}
 
 				for _, seatReservation := range seatReservationList {
-					reservation := Reservation{}
-					query = "SELECT * FROM reservations WHERE reservation_id=? FOR UPDATE"
-					err = dbx.Get(&reservation, query, seatReservation.ReservationId)
-					if err != nil {
-						panic(err)
-					}
 
 					var departureStation, arrivalStation Station
 					query = "SELECT * FROM station_master WHERE name=?"
 
-					if departureStation, ok = stationMap[reservation.Departure]; !ok {
+					if departureStation, ok = stationMap[seatReservation.Departure]; !ok {
 						tx.Rollback()
 						panic(err)
 					}
-					if arrivalStation, ok = stationMap[reservation.Arrival]; !ok {
+					if arrivalStation, ok = stationMap[seatReservation.Arrival]; !ok {
 						tx.Rollback()
 						panic(err)
 					}
