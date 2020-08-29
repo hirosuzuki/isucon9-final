@@ -12,6 +12,7 @@ import (
 	"math"
 	"net/http"
 	"os"
+	"os/exec"
 	"strconv"
 	"time"
 
@@ -21,7 +22,9 @@ import (
 	goji "goji.io"
 	"goji.io/pat"
 	"golang.org/x/crypto/pbkdf2"
+
 	// "sync"
+	tracer "github.com/hirosuzuki/go-isucon-tracer"
 )
 
 var (
@@ -597,7 +600,7 @@ func trainSearchHandler(w http.ResponseWriter, r *http.Request) {
 				continue
 			}
 
-			err = dbx.Get(&arrival, "SELECT arrival FROM train_timetable_master WHERE date=? AND train_class=? AND train_name=? AND station=?", date.Format("2006/01/02"), train.TrainClass, train.TrainName, toStation.Name)
+			err = dbx.Get(&arrival, "SELECT arrival FROM train_timetable_master WHERE date=? AND train_class=? AND train_name=? AND station=? ORDER BY train_name, departure", date.Format("2006/01/02"), train.TrainClass, train.TrainName, toStation.Name)
 			if err != nil {
 				errorResponse(w, http.StatusInternalServerError, err.Error())
 				return
@@ -2082,6 +2085,12 @@ func initializeHandler(w http.ResponseWriter, r *http.Request) {
 	dbx.Exec("TRUNCATE reservations")
 	dbx.Exec("TRUNCATE users")
 
+	tracer.Start()
+	startCmd := exec.Command("sh", "/home/isucon/start.sh", tracer.TraceID)
+	startCmd.Stderr = os.Stderr
+	startCmd.Stdout = os.Stderr
+	startCmd.Start()
+
 	resp := InitializeResponse{
 		availableDays,
 		"golang",
@@ -2146,7 +2155,7 @@ func main() {
 		dbname,
 	)
 
-	dbx, err = sqlx.Open("mysql", dsn)
+	dbx, err = sqlx.Open("mysql:logger", dsn)
 	if err != nil {
 		log.Fatalf("failed to connect to DB: %s.", err.Error())
 	}
